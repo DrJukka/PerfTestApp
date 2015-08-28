@@ -46,4 +46,4 @@ Create standard Thali app with the plugin: https://github.com/thaliproject/Thali
 
 Then add the content of the TestApp\www\ folder to the www folder  of the Thali app.
 
-Do also remember to copy the ipaddress.json
+Do also remember to copy the ipaddress.json into the jxcore folder!
