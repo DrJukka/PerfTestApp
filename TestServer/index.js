@@ -16,11 +16,11 @@ Object.keys(ifaces).forEach(function (ifname) {
       return;
     }
 
-    if (ifname.indexOf("Wi-Fi") > -1) {
+    if(ifname.indexOf("Wi-Fi") > -1){
       // this interface has only one ipv4 adress
       console.log(ifname, iface.address);
 
-      fs.writeFile("./ipaddress.json", JSON.stringify({name: ifname, address: iface.address}), function (err) {
+      fs.writeFile("./ipaddress.json", JSON.stringify([{name: ifname, address: iface.address}]), function (err) {
         if (err) {
           return console.log(err);
         }
@@ -31,29 +31,29 @@ Object.keys(ifaces).forEach(function (ifname) {
 });
 
 
-app.get('/', function(req, res) {
+app.get('/', function(req, res){
   console.log("HTTP get called");
   res.sendfile('index.html');
 });
 
-io.on('connection', function(socket) {
+io.on('connection', function(socket){
   console.log("got connection");
 
-  socket.on('chat message', function (msg) {
+  socket.on('chat message', function(msg){
     console.log("got chat message: " + msg);
     io.emit('chat message', msg);
   });
 
-  socket.on('disconnect', function () {
+  socket.on('disconnect', function(){
     console.log("Client disconnect: ");
   });
 
-  socket.on('identify device', function (msg) {
+  socket.on('identify device', function(msg){
     console.log("Client identified: : " + msg);
   });
 
 });
 
-http.listen(3000, function() {
+http.listen(3000, function(){
   console.log('listening on *:3000');
 });
