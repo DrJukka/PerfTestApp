@@ -54,25 +54,18 @@
 
 
     function jxcore_ready() {
-        jxcore('setMessageCallback').call(SendMessageCallback);
-        document.getElementById("SendButton").addEventListener("click", SendMessage);
-        document.getElementById("ClearMessagesButton").addEventListener("click", ClearMessages);
-        console.log("UIApp says that jxcore_ready");
+        jxcore('setLogCallback').call(logCallback);
+        document.getElementById("ClearLogButton").addEventListener("click", ClearLog);
+        console.log("UIApp is all set and ready!");
     }
 
 
-    function ClearMessages() {
-        document.getElementById('ReplyBox').value = "";
+    function ClearLog() {
+        document.getElementById('LogBox').value = "";
     }
 
-    function SendMessageCallback(data) {
-        console.log("SendMessageCallback " + data);
-        document.getElementById('ReplyBox').value = data + "\n" + document.getElementById('ReplyBox').value;
-    }
-    function SendMessage() {
-        var message = document.getElementById('MessageBox').value;
-        console.log("SendMessage " + message);
-        jxcore('SendMessage').call(message, SendMessageCallback);
-        document.getElementById('MessageBox').value = ""
+    function logCallback(data) {
+        console.log("logCallback " + data);
+        document.getElementById('LogBox').value = data + "\n" + document.getElementById('LogBox').value;
     }
 })();

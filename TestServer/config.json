@@ -1,0 +1,8 @@
+{
+    "name": "performance tests",
+    "description": "basic performance tests for Thaili apps framework",
+    "startDeviceCount": "2",
+    "tests": [
+        {"name": "findPeers", "data": {"count": "1"}}
+    ]
+}

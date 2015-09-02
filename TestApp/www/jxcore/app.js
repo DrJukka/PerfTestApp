@@ -1,71 +1,63 @@
 (function () {
 
+    var CoordinatorConnector = require('CoordinatorConnector');
+    var TestFrameworkClient = require('TestFrameworkClient');
+
     /*----------------------------------------------------------------------------------
      code for connecting to the coordinator server
      -----------------------------------------------------------------------------------*/
     fs = require('fs');
-    var socket = null;
     var parsedJSON = require('ipaddress.json');
+    var myName = "DEV" + Math.round((Math.random() * (10000)));
 
-    var myName = "Phone" + (Math.random() * (1000));
 
-    console.log('my name is : '+ myName);
+    console.log('my name is : ' + myName);
     console.log('Connect to  address : ' + parsedJSON[0].address + ' type: ' + parsedJSON[0].name);
 
-    socket = require('socket.io-client')('http://' + parsedJSON[0].address + ':3000/');
-
+    var Coordinator = new CoordinatorConnector();
+    Coordinator.init(parsedJSON[0].address, 3000);
     console.log('attempting to connect to test coordinator');
 
-    socket.on('connect', function () {
-        console.log('Client has connected to the server!');
-        gotMessage('connect : ');
-        socket.emit('identify device', myName);
-    });
-
-    socket.on('connect_error', function (err) {
-        console.log('Client got connect_error : ' + err);
-        gotMessage('connect_error : ' + err);
-    });
-
-    socket.on('connect_timeout', function (err) {
-        console.log('Client got connect_timeout : ' + err);
-        gotMessage('connect_timeout : ' + err);
-    });
-
-    socket.on('error', function (err) {
-        console.log('Client got error : ' + err);
-        gotMessage('error : ' + err);
-    });
-
-    // Add a disconnect listener
-    socket.on('disconnect', function () {
-        console.log('The client has disconnected!');
-        gotMessage('disconnect');
+    Coordinator.on('error', function (data) {
+        var errData = JSON.parse(data);
+        console.log('Error:' + data + ' : ' + errData.type +  ' : ' + errData.data);
+        for (var property in errData.data) {
+            console.log('Err data.: ' + property + ': ' + errData.data[property]);
+        }
+        logMessageToScreen('Client got ' + errData.type +  ' : ' + errData.data);
     });
 
     /*----------------------------------------------------------------------------------
-     code for handling communications with coordinator server
+     code for handling test communications
      -----------------------------------------------------------------------------------*/
-
-    socket.on('message', function (data) {
-        console.log('Received a message from the server!', data);
+    var TestFramework = new TestFrameworkClient(myName);
+    TestFramework.on('done', function (data) {
+        logMessageToScreen('one test done: ' + data);
+        console.log('one test done: ' + data);
+        Coordinator.sendData(data);
     });
 
-
-    socket.on('chat message', function (msg) {
-        console.log('chat message : ' + msg);
-        gotMessage('chat message: ' + msg);
+    Coordinator.on('connect', function () {
+        logMessageToScreen('my name is : ' + myName);
+        console.log('Client has connected to the server!');
+        logMessageToScreen('connected to server');
+        Coordinator.identify(myName);
     });
 
+    Coordinator.on('command', function (data) {
+        console.log('command received : ' + data);
+        logMessageToScreen('command received: ' + data);
+        TestFramework.handleCommand(data);
+    });
 
-    /****************************************************************************************
-     Functions for testing stuff
-     ****************************************************************************************/
+    // Add a disconnect listener
+    Coordinator.on('disconnect', function () {
+        console.log('The client has disconnected!');
+        //we need to stop & close any tests we are runnign here
+        TestFramework.stopAllTests();
+        logMessageToScreen('disconnected');
+    });
 
-    function sendGetRequest(message) {
-        console.log('sendGetRequest called : ' + message);
-        socket.emit('chat message', message);
-    }
 
 
     /***************************************************************************************
@@ -78,23 +70,18 @@
     }
 
 
-    var MessageCallback;
+    var LogCallback;
 
-    function gotMessage(message) {
-        if (isFunction(MessageCallback)) {
-            MessageCallback(message);
+    function logMessageToScreen(message) {
+        if (isFunction(LogCallback)) {
+            LogCallback(message);
         } else {
-            console.log("MessageCallback not set !!!!");
+            console.log("LogCallback not set !!!!");
         }
     }
 
-    Mobile('SendMessage').registerAsync(function (message, callback) {
-        console.log("SendMessage : " + message);
-        sendGetRequest(message);
-    });
-
-    Mobile('setMessageCallback').registerAsync(function (callback) {
-        MessageCallback = callback;
+    Mobile('setLogCallback').registerAsync(function (callback) {
+        LogCallback = callback;
     });
 
 
