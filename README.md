@@ -2,35 +2,40 @@
 
 ## current state
 
-Currently there is just initial framework soft-of-thing ready. The framework implements communications between devices & coordinator server.
+Currently the framework is considered finalized at least from the design point of view. Any bugs etc. still need to be ironed out.
 
-All devices & the machine where the coordinator server is run must be using same Wi-Fi network.
+Tests however are not finalized, the second test currently is just made to time-out, since its just not ready at all.
 
-Currently the device simply connects to the coordinator server and identifies him-selves
+Find peers test however is very near to the final version.
 
-each device can sent messages, and server simply relays that to all parties.
-
-There is possibility on also seeing chat-logs with browser.
+When using do remember that all devices & the machine where the coordinator server is run must be using same Wi-Fi network.
 
 ## Plan
 
-the planned logic would work a bit like this:
-- Each device starts, connects to the coordinator, and identifies themselves
-- coordinator waits for N devices to connect to it
+Currently working on the test cases on device side, server side is currently considered mostly ready.
 
-And for Each tests cases specified the logic could be something like this:
-- coordinator sends start command to all devices (all devices call start broadcasting)
-- devices send ACK for successful starting 
-- coordinator asks devices start specified test
-- each device report when tests is handled
-- coordinator sends End command to all devices (all devices call stop broadcasting)
-- the end command can be sent when all devices have reported that they finished the test, or when there is a time-out for the test.
-
-### usage
+## usage
 
 Before running anything do remember to use npm install to get the required nodejs modules installed. 
 
 If additional modules are required, then there is package.json file present in the folder.
+
+you also need to define test data with the config.json file.
+- define with startDeviceCount on how many devices needs to be connected before tests are started
+- add tests into the tests array, currently supported tests are findPeers and re-Connect
+
+with findPeers
+- timeout defines timeout value which after the coordinator server will cancel the test
+- data is data that gets sent to the clients devices, and defines what they need to do
+
+with the data item
+- timeout defines timeout value which after the device will cancel the tests, and sent partial results back to the coordinator server
+- count defines how many peers needs to be found/processed 
+
+additionally with  re-Connect test data
+- rounds defines how many rounds of connection established needs to be performed for each peers
+- dataAmount defines the amount of data sent through each connection before disconnecting
+
 
 ## Coordinator server
 
