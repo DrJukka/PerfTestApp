@@ -11,12 +11,27 @@ var configFile = require('./config.json');
 var testDevices = {};
 var testResults = [];
 
-
 var currentTest = -1;
+
+/*
+ {
+ "name": "performance tests",
+ "description": "basic performance tests for Thaili apps framework",
+ "startDeviceCount": "4",
+ "tests": [
+ {"name": "findPeers", "timeout": "30000","data": {"count": "3","timeout": "20000"}},
+ {"name": "re-Connect", "timeout": "90000","data": {"count": "1","timeout": "20000","rounds":"1","dataAmount":"1000"}}
+ ]
+ }
+ */
 
 function TestFramework() {
     console.log('Start test : ' + configFile.name + ", start tests with " + configFile.startDeviceCount + " devices");
-    console.log('Test 1 : ' + configFile.tests[0].name + ", has data : " + JSON.stringify(configFile.tests[0].data));
+
+    for(var i=0; i < configFile.tests.length; i++) {
+        console.log('Test[' + i + ']: ' + configFile.tests[i].name + ', timeout : ' + configFile.tests[i].timeout + ", data : " + JSON.stringify(configFile.tests[i].data));
+    }
+
     currentTest = -1;
 }
 
@@ -40,12 +55,13 @@ TestFramework.prototype.addDevice = function(device){
 
 TestFramework.prototype.removeDevice = function(name){
     console.log(name + ' id now disconnected!');
-
-    if(currentTest < 0){
-        testDevices[name] = null;
+    if(currentTest >= 0){
+        console.log('test progressing ' + name + ' is not removed from the list');
+        return;
     }
-    //else we have tests progressing, and we dont want to mark it as null
 
+    //mark it removed from te list
+    testDevices[name] = null;
 }
 
 TestFramework.prototype.ClientDataReceived = function(name,data){
@@ -67,18 +83,7 @@ TestFramework.prototype.ClientDataReceived = function(name,data){
 
     if(devicesFinishedCount == configFile.startDeviceCount){
         console.log('test[ ' + currentTest + '] done now.');
-
-        for (var deviceName in testDevices) {
-            if (testDevices[deviceName] != null) {
-                var responseTime = testDevices[deviceName].endTime - testDevices[deviceName].startTime;
-                testResults.push({"test": currentTest, "device":deviceName,"time": responseTime,"data": testDevices[deviceName].data});
-
-                //lets finalize the test by stopping it.
-                testDevices[deviceName].SendCommand('stop',"","");
-            }
-        }
-
-        doNextTest()
+        testFinished();
     }
 }
 
@@ -92,21 +97,31 @@ TestFramework.prototype.getConnectedDevicesCount  = function(){
 
     return count;
 }
+var timerId = null;
 
 function doNextTest(){
-    console.log('doNextTest!');
+
+    if(timerId != null) {
+        clearTimeout(timerId);
+        timerId = null;
+    }
 
     currentTest = currentTest + 1;
     if(configFile.tests[currentTest]){
         //if we have tests, then lets start new tests on all devices
+        console.log('start test[' + currentTest + ']');
         for (var deviceName in testDevices) {
             if(testDevices[deviceName] != null){
                 testDevices[deviceName].SendCommand('start',configFile.tests[currentTest].name,JSON.stringify(configFile.tests[currentTest].data));
                 testDevices[deviceName].startTime = new Date();
+                testDevices[deviceName].endTime = new Date();
                 testDevices[deviceName].data = null;
            }
         }
 
+        if(configFile.tests[currentTest].timeout) {
+            timerId = setTimeout(testTimeOut, configFile.tests[currentTest].timeout);
+        }
         return;
     }
 
@@ -118,6 +133,22 @@ function doNextTest(){
         console.log('---------------');
     }
 }
+function testTimeOut(){
+    console.log('*** TIMEOUT ****');
+    testFinished();
+}
+function testFinished(){
+    for (var deviceName in testDevices) {
+        if (testDevices[deviceName] != null) {
+            var responseTime = testDevices[deviceName].endTime - testDevices[deviceName].startTime;
+            testResults.push({"test": currentTest, "device":deviceName,"time": responseTime,"data": testDevices[deviceName].data});
 
+            //lets finalize the test by stopping it.
+            testDevices[deviceName].SendCommand('stop',"","");
+        }
+    }
+
+    doNextTest()
+}
 
 module.exports = TestFramework;

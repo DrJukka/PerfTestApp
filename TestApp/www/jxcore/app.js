@@ -21,10 +21,7 @@
     Coordinator.on('error', function (data) {
         var errData = JSON.parse(data);
         console.log('Error:' + data + ' : ' + errData.type +  ' : ' + errData.data);
-        for (var property in errData.data) {
-            console.log('Err data.: ' + property + ': ' + errData.data[property]);
-        }
-        logMessageToScreen('Client got ' + errData.type +  ' : ' + errData.data);
+        logMessageToScreen('Client error: ' + errData.type);
     });
 
     /*----------------------------------------------------------------------------------
@@ -32,13 +29,14 @@
      -----------------------------------------------------------------------------------*/
     var TestFramework = new TestFrameworkClient(myName);
     TestFramework.on('done', function (data) {
-        logMessageToScreen('one test done: ' + data);
-        console.log('one test done: ' + data);
+        console.log('done, sending data to server');
         Coordinator.sendData(data);
+    });
+    TestFramework.on('debug', function (data) {
+        logMessageToScreen(data);
     });
 
     Coordinator.on('connect', function () {
-        logMessageToScreen('my name is : ' + myName);
         console.log('Client has connected to the server!');
         logMessageToScreen('connected to server');
         Coordinator.identify(myName);
@@ -46,7 +44,6 @@
 
     Coordinator.on('command', function (data) {
         console.log('command received : ' + data);
-        logMessageToScreen('command received: ' + data);
         TestFramework.handleCommand(data);
     });
 
@@ -69,7 +66,6 @@
         return functionToCheck && getType.toString.call(functionToCheck) === '[object Function]';
     }
 
-
     var LogCallback;
 
     function logMessageToScreen(message) {
@@ -84,8 +80,10 @@
         LogCallback = callback;
     });
 
+    Mobile('getMyName').registerAsync(function (callback) {
+        callback(myName);
+    });
 
     // Log that the app.js file was loaded.
     console.log('Test app app.js loaded');
-
 })();

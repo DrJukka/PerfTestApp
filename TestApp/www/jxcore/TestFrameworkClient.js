@@ -5,6 +5,7 @@
 var events = require('events');
 
 var TestOneClient = require('./tests/TestOneClient');
+var TestTwoClient = require('./tests/TestTwoClient');
 
 var currentTest = null;
 
@@ -45,9 +46,24 @@ TestFrameworkClient.prototype.handleCommand = function(command){
             this.stopAllTests(); //Stop any previous tets if still running
             switch(commandData.testName){
                 case 'findPeers':{
+                    self.emit('debug',"---- start : findPeers -- ");
                     currentTest = new TestOneClient(commandData.testData,this.deviceName);
                     currentTest.on('done', function (data) {
                         self.emit('done',data);
+                    });
+                    currentTest.on('debug', function (data) {
+                        self.emit('debug',data);
+                    });
+                    break;
+                }
+                case 're-Connect':{
+                    self.emit('debug',"---- start : re-Connect -- ");
+                    currentTest = new TestTwoClient(commandData.testData,this.deviceName);
+                    currentTest.on('done', function (data) {
+                        self.emit('done',data);
+                    });
+                    currentTest.on('debug', function (data) {
+                        self.emit('debug',data);
                     });
                     break;
                 }
@@ -55,6 +71,7 @@ TestFrameworkClient.prototype.handleCommand = function(command){
             break;
         }
         case 'stop':{
+            self.emit('debug',"stop");
             this.stopAllTests();
             break;
         }

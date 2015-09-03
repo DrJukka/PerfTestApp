@@ -54,11 +54,16 @@
 
 
     function jxcore_ready() {
+        jxcore('getMyName').call(setNameToUI);
         jxcore('setLogCallback').call(logCallback);
         document.getElementById("ClearLogButton").addEventListener("click", ClearLog);
+
         console.log("UIApp is all set and ready!");
     }
 
+    function setNameToUI(name) {
+        document.getElementById("nameTag").innerHTML = name;
+    }
 
     function ClearLog() {
         document.getElementById('LogBox').value = "";

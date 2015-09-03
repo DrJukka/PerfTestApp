@@ -1,20 +1,25 @@
 /**
- * Created by juksilve on 2.9.2015.
+ * Created by juksilve on 3.9.2015.
  */
 'use strict';
 
 var events = require('events');
 
+var TestTwoTCPServer = require('./TestTwoTCPServer');
+var TestTwoConnector = require('./TestTwoConnector');
 
-function TestOneClient(jsonData,name) {
+function TestTwoClient(jsonData,name) {
     var self = this;
-    console.log('TestOneClient created ' + jsonData);
+    console.log('TestTwoClient created ' + jsonData);
 
     var commandData = JSON.parse(jsonData);
-    this.toFindCount = commandData.count;
-    this.foundPeers = {};
+    this.toFindCount        = commandData.count;
 
-    var serverPort = 8876;//we are not connectin, thus we can use fake port here.
+    this.testServer = new TestTwoTCPServer();
+    this.testConnector = new TestTwoConnector(commandData.rounds,commandData.dataAmount);
+
+    console.log('check server');
+    var serverPort = this.testServer.getServerPort();
     console.log('serverPort is ' + serverPort);
 
     Mobile('StartBroadcasting').callNative(name, serverPort, function (err) {
@@ -25,7 +30,7 @@ function TestOneClient(jsonData,name) {
         }
     });
 
-    if(commandData.timeout){
+  /*  if(commandData.timeout){
 
         timerId = setTimeout(function() {
             console.log('timeout now');
@@ -36,13 +41,13 @@ function TestOneClient(jsonData,name) {
                 self.weAreDoneNow();
             }
         }, commandData.timeout);
-    }
+    }*/
 }
 
-TestOneClient.prototype = new events.EventEmitter;
+TestTwoClient.prototype = new events.EventEmitter;
 
-TestOneClient.prototype.stop = function() {
-    console.log('TestOneClient stopped');
+TestTwoClient.prototype.stop = function() {
+    console.log('TestTwoClient stopped');
 
     Mobile('StopBroadcasting').callNative(function (err) {
         if (err) {
@@ -51,33 +56,19 @@ TestOneClient.prototype.stop = function() {
             console.log('StopBroadcasting went ok');
         }
     });
+
+    this.testServer.stopServer();
 }
 
-TestOneClient.prototype.peerAvailabilityChanged = function(peers) {
+TestTwoClient.prototype.peerAvailabilityChanged = function(peers) {
     console.log('peerAvailabilityChanged ' + peers);
     for (var i = 0; i < peers.length; i++) {
-        var peer = peers[i];
-        this.foundPeers[peer.peerIdentifier] = peer;
-        if(this.foundPeers[peer.peerIdentifier].peerAvailable) {
-            this.emit('debug', "Found peer : " + peer.peerName + ", Available: " + peer.peerAvailable);
-            console.log("Found peer : " + peer.peerName + ", peerAvailable: " + peer.peerAvailable);
-        }
-    }
-
-    var howManyWeDiscoveredAlready = 0;
-    for (var foundPeer in this.foundPeers) {
-        if (this.foundPeers[foundPeer].peerAvailable) {
-            howManyWeDiscoveredAlready = howManyWeDiscoveredAlready + 1;
-        }
-    }
-
-    if(howManyWeDiscoveredAlready >= this.toFindCount && !this.doneAlready){
-        this.weAreDoneNow();
+        this.testConnector.addPeer(peer);
     }
 }
 var timerId = null;
 
-TestOneClient.prototype.weAreDoneNow = function() {
+TestTwoClient.prototype.weAreDoneNow = function() {
 
     if (timerId != null) {
         clearTimeout(timerId);
@@ -87,17 +78,18 @@ TestOneClient.prototype.weAreDoneNow = function() {
     console.log('weAreDoneNow');
 
     if(!this.doneAlready) {
-        this.doneAlready = true;
+
         var replyData = [];
         for (var foundPeer in this.foundPeers) {
             replyData.push({"peerName":this.foundPeers[foundPeer].peerName, "peerIdentifier": this.foundPeers[foundPeer].peerIdentifier, "peerAvailable":this.foundPeers[foundPeer].peerAvailable});
         }
 
-        this.emit('debug', "---- finished : findPeers -- ");
+        this.emit('debug', "---- finished : re-Connect -- ");
         this.emit('done', JSON.stringify(replyData));
-
+        this.doneAlready = true;
     }
 }
 
 
-module.exports = TestOneClient;
+
+module.exports = TestTwoClient;
