@@ -10,7 +10,7 @@ function TestThreeTCPServer(port) {
 
     var dataCount = 0;
     var lastReportedCount = 0;
-    var limitToReport = 10000;
+    var limitToReport = 50000;
 
     this.stopServer();
     this.server = net.createServer(function (c) { //'connection' listener
@@ -31,7 +31,7 @@ function TestThreeTCPServer(port) {
 
             if(dataCount / limitToReport > lastReportedCount){
                 lastReportedCount++;
-                c.write("10000");
+                c.write("50000");
             }
         });
 

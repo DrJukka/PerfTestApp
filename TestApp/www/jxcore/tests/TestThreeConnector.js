@@ -19,6 +19,7 @@ function TestThreeConnector(rounds,dataAmount,timeout,reTryTimeout,reTryMaxCount
     this.timerId            = null;
     this.tryRounds          = 0;
     this.resultArray        = [];
+    this.connectionCount    = 0;
 }
 
 TestThreeConnector.prototype = new events.EventEmitter;
@@ -76,6 +77,8 @@ TestThreeConnector.prototype.doConnect = function(peer) {
      }, this.timeout);
      }*/
 
+    this.connectionCount++;
+
     Mobile('Connect').callNative(peer.peerIdentifier, function (err, port) {
         console.log("CLIENT connected to " + port + ", error: " + err);
 
@@ -104,8 +107,8 @@ TestThreeConnector.prototype.doConnect = function(peer) {
             });
             self.clientSocket.on('data', function (data) {
 
-                if(data.toString().trim()  == "10000") {
-                    self.receivedCounter = self.receivedCounter + 10000;
+                if(data.toString().trim()  == "50000") {
+                    self.receivedCounter = self.receivedCounter + 50000;
                 }
 
                 console.log('CLIENT is data received : ' + self.receivedCounter);
@@ -113,6 +116,10 @@ TestThreeConnector.prototype.doConnect = function(peer) {
                 if(self.receivedCounter >= self.toSendDataAmount){
                     self.endTime = new Date();
                     self.endReason = "OK";
+                    console.log('got all data for this round');
+
+                    //we only reset the value once we have gotten all data, so any re-connect will sent only missing data
+                    self.receivedCounter = 0;
                     self.oneRoundDoneNow();
                 }
             });
@@ -122,10 +129,13 @@ TestThreeConnector.prototype.doConnect = function(peer) {
 
             self.clientSocket.on('error', function (ex) {
                 console.log("CLIENT got error : " + ex);
+                self.tryAgain();
             });
         }
     });
 }
+
+
 TestThreeConnector.prototype.tryAgain = function() {
     var self = this;
     this.tryRounds++;
@@ -146,13 +156,15 @@ TestThreeConnector.prototype.oneRoundDoneNow = function() {
     this.Stop();
 
     var responseTime = this.endTime - this.startTime;
-    this.resultArray.push({"name:":this.peer.peerName,"time":responseTime,"result":this.endReason});
+    this.resultArray.push({"name:":this.peer.peerName,"time":responseTime,"result":this.endReason,"connections":this.connectionCount});
 
     this.emit('debug','round[' +this.doneRounds + '] done in ' + responseTime + ' ms.');
+    this.connectionCount = 0;
 
     this.doneRounds++;
     if(this.roundsToDo > this.doneRounds){
         this.tryRounds = 0;
+        console.log('HUMPPAA');
         this.Start(this.peer);
         return;
     }
@@ -168,6 +180,7 @@ TestThreeConnector.prototype.weAreDoneNow = function() {
     this.doneRounds = 0;
     this.tryRounds = 0;
     this.receivedCounter = 0;
+    this.connectionCount = 0;
     this.resultArray = [];
 }
 
