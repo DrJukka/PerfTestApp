@@ -4,8 +4,10 @@
 'use strict';
 var events = require('events');
 
-var TestOneClient = require('./tests/TestOneClient');
-var TestTwoClient = require('./tests/TestTwoClient');
+var TestOneClient  = require('./tests/TestOneClient');
+var TestTwoClient  = require('./tests/TestTwoClient');
+var TestThreeClient= require('./tests/TestThreeClient');
+
 
 var currentTest = null;
 
@@ -59,6 +61,17 @@ TestFrameworkClient.prototype.handleCommand = function(command){
                 case 're-Connect':{
                     self.emit('debug',"---- start : re-Connect -- ");
                     currentTest = new TestTwoClient(commandData.testData,this.deviceName);
+                    currentTest.on('done', function (data) {
+                        self.emit('done',data);
+                    });
+                    currentTest.on('debug', function (data) {
+                        self.emit('debug',data);
+                    });
+                    break;
+                }
+                case 'send-data':{
+                    self.emit('debug',"---- start : send-data -- ");
+                    currentTest = new TestThreeClient(commandData.testData,this.deviceName);
                     currentTest.on('done', function (data) {
                         self.emit('done',data);
                     });

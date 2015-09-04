@@ -20,7 +20,9 @@ var currentTest = -1;
  "startDeviceCount": "4",
  "tests": [
  {"name": "findPeers", "timeout": "30000","data": {"count": "3","timeout": "20000"}},
- {"name": "re-Connect", "timeout": "90000","data": {"count": "3","timeout": "80000","rounds":"3","dataAmount":"100","conTimeout":"5000","conReTryTimeout":"2000","conReTryCount":"3"}}
+ {"name": "re-Connect", "timeout": "90000","data": {"count": "3","timeout": "80000","rounds":"3","dataAmount":"100","conTimeout":"5000","conReTryTimeout":"2000","conReTryCount":"3"}},
+ {"name": "send-data", "timeout": "120000","data": {"count": "1","timeout": "110000","rounds":"3","dataAmount":"1000000","conTimeout":"5000","conReTryTimeout":"2000","conReTryCount":"3"}}
+
  ]
  }
  */
