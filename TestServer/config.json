@@ -1,9 +1,9 @@
 {
     "name": "performance tests",
     "description": "basic performance tests for Thaili apps framework",
-    "startDeviceCount": "2",
+    "startDeviceCount": "4",
     "tests": [
-        {"name": "findPeers", "timeout": "30000","data": {"count": "1","timeout": "20000"}},
-        {"name": "re-Connect", "timeout": "3000","data": {"count": "1","timeout": "80000","rounds":"1","dataAmount":"100"}}
+        {"name": "findPeers", "timeout": "30000","data": {"count": "3","timeout": "20000"}},
+        {"name": "re-Connect", "timeout": "120000","data": {"count": "3","timeout": "110000","rounds":"3","dataAmount":"100","conTimeout":"5000","conReTryTimeout":"2000","conReTryCount":"3"}}
     ]
 }

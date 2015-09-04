@@ -20,7 +20,7 @@ var currentTest = -1;
  "startDeviceCount": "4",
  "tests": [
  {"name": "findPeers", "timeout": "30000","data": {"count": "3","timeout": "20000"}},
- {"name": "re-Connect", "timeout": "90000","data": {"count": "1","timeout": "20000","rounds":"1","dataAmount":"1000"}}
+ {"name": "re-Connect", "timeout": "90000","data": {"count": "3","timeout": "80000","rounds":"3","dataAmount":"100","conTimeout":"5000","conReTryTimeout":"2000","conReTryCount":"3"}}
  ]
  }
  */
@@ -44,11 +44,11 @@ TestFramework.prototype.addDevice = function(device){
         return;
     }
 
-    console.log(device.getName() + ' added!');
     testDevices[device.getName()] = device;
+    console.log(device.getName() + ' added!');
 
     if(this.getConnectedDevicesCount() == configFile.startDeviceCount){
-        console.log('start testing now');
+        console.log('----- start testing now -----');
         doNextTest();
     }
 }
@@ -74,6 +74,13 @@ TestFramework.prototype.ClientDataReceived = function(name,data){
     var responseTime = testDevices[name].endTime - testDevices[name].startTime;
     console.log('with ' + name + ' request took : ' + responseTime + " ms.");
 
+    if(this.getFinishedDevicesCount() == configFile.startDeviceCount){
+        console.log('test[ ' + currentTest + '] done now.');
+        testFinished();
+    }
+}
+
+TestFramework.prototype.getFinishedDevicesCount  = function(){
     var devicesFinishedCount = 0;
     for (var deviceName in testDevices) {
         if(testDevices[deviceName] != null && testDevices[deviceName].data != null){
@@ -81,10 +88,7 @@ TestFramework.prototype.ClientDataReceived = function(name,data){
         }
     }
 
-    if(devicesFinishedCount == configFile.startDeviceCount){
-        console.log('test[ ' + currentTest + '] done now.');
-        testFinished();
-    }
+    return devicesFinishedCount;
 }
 
 TestFramework.prototype.getConnectedDevicesCount  = function(){
@@ -97,6 +101,7 @@ TestFramework.prototype.getConnectedDevicesCount  = function(){
 
     return count;
 }
+
 var timerId = null;
 
 function doNextTest(){
@@ -106,16 +111,16 @@ function doNextTest(){
         timerId = null;
     }
 
-    currentTest = currentTest + 1;
+    currentTest++;
     if(configFile.tests[currentTest]){
         //if we have tests, then lets start new tests on all devices
         console.log('start test[' + currentTest + ']');
         for (var deviceName in testDevices) {
             if(testDevices[deviceName] != null){
-                testDevices[deviceName].SendCommand('start',configFile.tests[currentTest].name,JSON.stringify(configFile.tests[currentTest].data));
                 testDevices[deviceName].startTime = new Date();
                 testDevices[deviceName].endTime = new Date();
                 testDevices[deviceName].data = null;
+                testDevices[deviceName].SendCommand('start',configFile.tests[currentTest].name,JSON.stringify(configFile.tests[currentTest].data));
            }
         }
 
@@ -145,6 +150,11 @@ function testFinished(){
 
             //lets finalize the test by stopping it.
             testDevices[deviceName].SendCommand('stop',"","");
+
+            //reset values for next testing round
+            testDevices[deviceName].startTime = new Date();
+            testDevices[deviceName].endTime = new Date();
+            testDevices[deviceName].data = null;
         }
     }
 

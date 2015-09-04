@@ -11,12 +11,29 @@ var TestTwoConnector = require('./TestTwoConnector');
 function TestTwoClient(jsonData,name) {
     var self = this;
     console.log('TestTwoClient created ' + jsonData);
-
     var commandData = JSON.parse(jsonData);
-    this.toFindCount        = commandData.count;
+
+    this.toFindCount    = commandData.count;
+    this.foundSofar     = 0;
+    this.timerId = null;
+    this.foundPeers = {};
+    this.resultArray = [];
 
     this.testServer = new TestTwoTCPServer();
-    this.testConnector = new TestTwoConnector(commandData.rounds,commandData.dataAmount);
+    this.testConnector = new TestTwoConnector(commandData.rounds,commandData.dataAmount,commandData.conTimeout,commandData.conReTryTimeout,commandData.conReTryCount);
+    this.testConnector.on('done', function (data) {
+        console.log('---- round done--------');
+        var resultData = JSON.parse(data);
+        for(var i=0; i < resultData.length; i++){
+            self.resultArray.push(resultData[i]);
+        }
+
+        this.testStarted = false;
+        self.startWithNextDevice();
+    });
+    this.testConnector.on('debug', function (data) {
+        self.emit('debug',data);
+    });
 
     console.log('check server');
     var serverPort = this.testServer.getServerPort();
@@ -30,9 +47,8 @@ function TestTwoClient(jsonData,name) {
         }
     });
 
-  /*  if(commandData.timeout){
-
-        timerId = setTimeout(function() {
+    if(commandData.timeout){
+        this.timerId = setTimeout(function() {
             console.log('timeout now');
             if(!self.doneAlready)
             {
@@ -41,7 +57,7 @@ function TestTwoClient(jsonData,name) {
                 self.weAreDoneNow();
             }
         }, commandData.timeout);
-    }*/
+    }
 }
 
 TestTwoClient.prototype = new events.EventEmitter;
@@ -63,30 +79,56 @@ TestTwoClient.prototype.stop = function() {
 TestTwoClient.prototype.peerAvailabilityChanged = function(peers) {
     console.log('peerAvailabilityChanged ' + peers);
     for (var i = 0; i < peers.length; i++) {
-        this.testConnector.addPeer(peer);
+        var peer = peers[i];
+        if((!this.foundPeers[peer.peerIdentifier]) || (!this.foundPeers[peer.peerIdentifier].doneAlready)) {
+            this.foundPeers[peer.peerIdentifier] = peer;
+            console.log("Found peer : " + peer.peerName + ", Available: " + peer.peerAvailable);
+        }
+    }
+
+    if(!this.testStarted) {
+        console.log("a");
+        this.startWithNextDevice();
     }
 }
-var timerId = null;
+
+TestTwoClient.prototype.startWithNextDevice = function() {
+
+    if(this.foundSofar >= this.toFindCount){
+        this.weAreDoneNow();
+        return;
+    }
+
+    for(var peerId in this.foundPeers){
+       //for debug & test time, ask reasoning from Jukka
+       // if(this.foundPeers[peerId].peerAvailable && !this.foundPeers[peerId].doneAlready){
+        if(!this.foundPeers[peerId].doneAlready){
+            this.testStarted = true;
+            this.emit('debug', '--- start for : ' + this.foundPeers[peerId].peerName + ' ---');
+            this.foundSofar++
+            console.log('device[' + this.foundSofar +  ']: ' + this.foundPeers[peerId].peerIdentifier);
+
+            this.foundPeers[peerId].doneAlready = true;
+            this.testConnector.Start(this.foundPeers[peerId]);
+            return;
+        }
+    }
+}
 
 TestTwoClient.prototype.weAreDoneNow = function() {
 
-    if (timerId != null) {
-        clearTimeout(timerId);
-        timerId = null;
+    if (this.timerId != null) {
+        clearTimeout(this.timerId);
+        this.timerId = null;
     }
 
-    console.log('weAreDoneNow');
+    this.testConnector
 
+    console.log('weAreDoneNow , resultArray.length: ' + this.resultArray.length);
     if(!this.doneAlready) {
-
-        var replyData = [];
-        for (var foundPeer in this.foundPeers) {
-            replyData.push({"peerName":this.foundPeers[foundPeer].peerName, "peerIdentifier": this.foundPeers[foundPeer].peerIdentifier, "peerAvailable":this.foundPeers[foundPeer].peerAvailable});
-        }
-
-        this.emit('debug', "---- finished : re-Connect -- ");
-        this.emit('done', JSON.stringify(replyData));
         this.doneAlready = true;
+        this.emit('debug', "---- finished : re-Connect -- :");
+        this.emit('done', JSON.stringify(this.resultArray));
     }
 }
 
