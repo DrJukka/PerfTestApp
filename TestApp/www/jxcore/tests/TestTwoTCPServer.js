@@ -6,6 +6,8 @@ var net = require('net');
 
 
 function TestTwoTCPServer(port) {
+    var self = this;
+    self.port = port;
 
     this.stopServer();
     this.server = net.createServer(function (c) { //'connection' listener
@@ -41,8 +43,8 @@ function TestTwoTCPServer(port) {
         console.log('TCP/IP server  socket is disconnected');
     });
 
-    this.server.listen(port, function(port) { //'listening' listener
-        console.log('TCP/IP server  is bound to : ' + port);
+    this.server.listen(port, function() { //'listening' listener
+        console.log('TCP/IP server  is bound to : ' + self.port);
     });
 }
 TestTwoTCPServer.prototype.getServerPort = function() {

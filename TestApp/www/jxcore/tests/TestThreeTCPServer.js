@@ -7,6 +7,8 @@ var net = require('net');
 
 
 function TestThreeTCPServer(port) {
+    var self = this;
+    self.port = port;
 
     var dataCount = 0;
     var lastReportedCount = 0;
@@ -18,6 +20,7 @@ function TestThreeTCPServer(port) {
 
         c.on('end', function () {
             console.log('TCP/IP server is ended');
+            c.destroy();
         });
         c.on('close', function () {
             console.log('TCP/IP server is close');
@@ -28,16 +31,11 @@ function TestThreeTCPServer(port) {
 
         c.on('data', function (data) {
             dataCount = dataCount + data.length;
-
             if(dataCount / limitToReport > lastReportedCount){
                 lastReportedCount++;
-                c.write("50000");
+                c.write("" + limitToReport);
             }
         });
-
-        // when using piping, I don't get 'data' events, and as in debug time I want to log them
-        // I'm doing write operations in the data event, instead doing the piping
-        // c.pipe(c);
     });
 
     this.server.on('error', function (data) {
@@ -47,8 +45,8 @@ function TestThreeTCPServer(port) {
         console.log('TCP/IP server  socket is disconnected');
     });
 
-    this.server.listen(port, function(port) { //'listening' listener
-        console.log('TCP/IP server  is bound to : ' + port);
+    this.server.listen(port, function() { //'listening' listener
+        console.log('TCP/IP server  is bound to : ' + self.port );
     });
 }
 TestThreeTCPServer.prototype.getServerPort = function() {
@@ -59,7 +57,6 @@ TestThreeTCPServer.prototype.stopServer = function() {
     if(this.server == null) {
         return;
     }
-
     this.server.close();
     this.server = null;
 }
