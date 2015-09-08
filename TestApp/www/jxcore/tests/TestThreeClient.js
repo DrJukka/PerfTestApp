@@ -12,17 +12,16 @@ var TestThreeConnector = require('./TestThreeConnector');
 function TestThreeClient(jsonData,name) {
     var self = this;
     console.log('TestThreeClient created ' + jsonData);
-    var commandData = JSON.parse(jsonData);
+    this.startTime = new Date();
+    this.endTime = new Date();
+    this.endReason ="";
+    this.name = name;
 
-    this.toFindCount    = commandData.count;
-    this.foundSofar     = 0;
-    this.timerId = null;
-    this.foundPeers = {};
-    this.resultArray = [];
+    this.debugCallback = function(data) {
+        self.emit('debug',data);
+    }
 
-    this.testServer = new TestThreeTCPServer();
-    this.testConnector = new TestThreeConnector(commandData.rounds,commandData.dataAmount,commandData.conReTryTimeout,commandData.conReTryCount,commandData.dataTimeout);
-    this.testConnector.on('done', function (data) {
+    this.doneCallback = function(data) {
         console.log('---- round done--------');
         var resultData = JSON.parse(data);
         for(var i=0; i < resultData.length; i++){
@@ -33,10 +32,20 @@ function TestThreeClient(jsonData,name) {
         if(!self.doneAlready) {
             self.startWithNextDevice();
         }
-    });
-    this.testConnector.on('debug', function (data) {
-        self.emit('debug',data);
-    });
+    }
+
+    var commandData = JSON.parse(jsonData);
+
+    this.toFindCount    = commandData.count;
+    this.foundSofar     = 0;
+    this.timerId = null;
+    this.foundPeers = {};
+    this.resultArray = [];
+
+    this.testServer = new TestThreeTCPServer();
+    this.testConnector = new TestThreeConnector(commandData.rounds,commandData.dataAmount,commandData.conReTryTimeout,commandData.conReTryCount,commandData.dataTimeout);
+    this.testConnector.on('done', this.doneCallback);
+    this.testConnector.on('debug',this.debugCallback);
 
     console.log('check server');
     var serverPort = this.testServer.getServerPort();
@@ -56,6 +65,7 @@ function TestThreeClient(jsonData,name) {
             if(!self.doneAlready)
             {
                 console.log('dun');
+                self.endReason = "TIMEOUT";
                 self.emit('debug', "*** TIMEOUT ***");
                 self.weAreDoneNow();
             }
@@ -77,6 +87,14 @@ TestThreeClient.prototype.stop = function() {
     });
 
     this.testServer.stopServer();
+
+    if(this.testConnector != null){
+        this.testConnector.Stop();
+        this.testConnector.removeListener('done', this.doneCallback);
+        this.testConnector.removeListener('debug', this.debugCallback);
+        this.testConnector = null;
+    }
+    this.doneAlready = true;
 }
 
 TestThreeClient.prototype.peerAvailabilityChanged = function(peers) {
@@ -96,8 +114,12 @@ TestThreeClient.prototype.peerAvailabilityChanged = function(peers) {
 }
 
 TestThreeClient.prototype.startWithNextDevice = function() {
+    if(this.doneAlready || this.testConnector == null) {
+        return;
+    }
 
     if(this.foundSofar >= this.toFindCount){
+        this.endReason = "OK";
         this.weAreDoneNow();
         return;
     }
@@ -118,28 +140,30 @@ TestThreeClient.prototype.startWithNextDevice = function() {
 
 TestThreeClient.prototype.weAreDoneNow = function() {
 
+    if (this.doneAlready || this.testConnector == null) {
+        return;
+    }
+
     if (this.timerId != null) {
         clearTimeout(this.timerId);
         this.timerId = null;
     }
 
     console.log('weAreDoneNow , resultArray.length: ' + this.resultArray.length);
-    if(!this.doneAlready) {
-        this.doneAlready = true;
+    this.doneAlready = true;
+    this.endTime = new Date();
 
-        //first make sure we are stopped
-        this.testConnector.Stop();
-        //then get any data that has not been reported yet. i.e. the full rounds have not been done yet
-        var resultData = this.testConnector.getResultArray();
-        for(var i=0; i < resultData.length; i++){
-            this.resultArray.push(resultData[i]);
-        }
-
-        this.emit('debug', "---- finished : send-data -- : resultArray.length: " + this.resultArray.length);
-        this.emit('done', JSON.stringify(this.resultArray));
+    //first make sure we are stopped
+    this.testConnector.Stop();
+    //then get any data that has not been reported yet. i.e. the full rounds have not been done yet
+    var resultData = this.testConnector.getResultArray();
+    for (var i = 0; i < resultData.length; i++) {
+        this.resultArray.push(resultData[i]);
     }
+
+    this.emit('debug', "---- finished : send-data -- ");
+    var responseTime = this.endTime - this.startTime;
+    this.emit('done', JSON.stringify({"name:": this.name,"time": responseTime,"result": this.endReason,"sendList": this.resultArray}));
 }
-
-
 
 module.exports = TestThreeClient;

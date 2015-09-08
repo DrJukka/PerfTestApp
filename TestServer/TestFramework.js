@@ -8,11 +8,6 @@ var events = require('events');
 var TestDevice = require('./TestDevice');
 var configFile = require('./config.json');
 
-var testDevices = {};
-var testResults = [];
-
-var currentTest = -1;
-
 /*
  {
  "name": "performance tests",
@@ -27,64 +22,72 @@ var currentTest = -1;
  */
 
 function TestFramework() {
+    this.timerId = null;
+    this.testDevices = {};
+    this.testResults = [];
+    this.currentTest = -1;
+
     console.log('Start test : ' + configFile.name + ", start tests with " + configFile.startDeviceCount + " devices");
 
     for(var i=0; i < configFile.tests.length; i++) {
         console.log('Test[' + i + ']: ' + configFile.tests[i].name + ', timeout : ' + configFile.tests[i].timeout + ", data : " + JSON.stringify(configFile.tests[i].data));
     }
-
-    currentTest = -1;
 }
 
 TestFramework.prototype = new events.EventEmitter;
 
 TestFramework.prototype.addDevice = function(device){
 
-    if(currentTest >= 0){
+    if(this.currentTest >= 0){
         console.log('test progressing ' + device.getName() + ' not added to tests');
         return;
     }
 
-    testDevices[device.getName()] = device;
+    this.testDevices[device.getName()] = device;
     console.log(device.getName() + ' added!');
 
     if(this.getConnectedDevicesCount() == configFile.startDeviceCount){
         console.log('----- start testing now -----');
-        doNextTest();
+        this.doNextTest();
     }
 }
 
 TestFramework.prototype.removeDevice = function(name){
     console.log(name + ' id now disconnected!');
-    if(currentTest >= 0){
-        console.log('test progressing ' + name + ' is not removed from the list');
+    if(this.currentTest >= 0){
+        if(this.testDevices[name]){
+            console.log('test for ' + name + ' cancelled');
+            this.ClientDataReceived(name,JSON.stringify({"result":"DISCONNECTED"}));
+        }else {
+            console.log('test progressing ' + name + ' is not removed from the list');
+        }
         return;
     }
 
     //mark it removed from te list
-    testDevices[name] = null;
+    this.testDevices[name] = null;
 }
 
 TestFramework.prototype.ClientDataReceived = function(name,data){
     var jsonData = JSON.parse(data);
 
     //save the time and the time we got the results
-    testDevices[name].data = jsonData;
-    testDevices[name].endTime = new Date();
+    this.testDevices[name].data = jsonData;
+    this.testDevices[name].endTime = new Date();
 
-    var responseTime = testDevices[name].endTime - testDevices[name].startTime;
+    var responseTime = this.testDevices[name].endTime - this.testDevices[name].startTime;
     console.log('with ' + name + ' request took : ' + responseTime + " ms.");
 
     if(this.getFinishedDevicesCount() == configFile.startDeviceCount){
-        console.log('test[ ' + currentTest + '] done now.');
-        testFinished();
+        console.log('test[ ' + this.currentTest + '] done now.');
+        this.testFinished();
     }
 }
 
 TestFramework.prototype.getFinishedDevicesCount  = function(){
     var devicesFinishedCount = 0;
-    for (var deviceName in testDevices) {
-        if(testDevices[deviceName] != null && testDevices[deviceName].data != null){
+    for (var deviceName in this.testDevices) {
+        if(this.testDevices[deviceName] != null && this.testDevices[deviceName].data != null){
             devicesFinishedCount = devicesFinishedCount + 1;
         }
     }
@@ -94,72 +97,69 @@ TestFramework.prototype.getFinishedDevicesCount  = function(){
 
 TestFramework.prototype.getConnectedDevicesCount  = function(){
     var count = 0;
-    for (var deviceName in testDevices) {
-        if(testDevices[deviceName] != null){
+    for (var deviceName in this.testDevices) {
+        if(this.testDevices[deviceName] != null){
             count++;
         }
     }
 
     return count;
 }
+TestFramework.prototype.doNextTest  = function(){
 
-var timerId = null;
-
-function doNextTest(){
-
-    if(timerId != null) {
-        clearTimeout(timerId);
-        timerId = null;
+    if(this.timerId != null) {
+        clearTimeout(this.timerId);
+        this.timerId = null;
     }
 
-    currentTest++;
-    if(configFile.tests[currentTest]){
+    this.currentTest++;
+    if(configFile.tests[this.currentTest]){
         //if we have tests, then lets start new tests on all devices
-        console.log('start test[' + currentTest + ']');
-        for (var deviceName in testDevices) {
-            if(testDevices[deviceName] != null){
-                testDevices[deviceName].startTime = new Date();
-                testDevices[deviceName].endTime = new Date();
-                testDevices[deviceName].data = null;
-                testDevices[deviceName].SendCommand('start',configFile.tests[currentTest].name,JSON.stringify(configFile.tests[currentTest].data));
+        console.log('start test[' + this.currentTest + ']');
+        for (var deviceName in this.testDevices) {
+            if(this.testDevices[deviceName] != null){
+                this.testDevices[deviceName].startTime = new Date();
+                this.testDevices[deviceName].endTime = new Date();
+                this.testDevices[deviceName].data = null;
+                this.testDevices[deviceName].SendCommand('start',configFile.tests[this.currentTest].name,JSON.stringify(configFile.tests[this.currentTest].data));
            }
         }
 
-        if(configFile.tests[currentTest].timeout) {
-            timerId = setTimeout(testTimeOut, configFile.tests[currentTest].timeout);
+        if(configFile.tests[this.currentTest].timeout) {
+            this.timerId = setTimeout(this.testTimeOut, configFile.tests[this.currentTest].timeout);
         }
         return;
     }
 
     console.log('All tests are done !');
     console.log('--------------- test report ---------------------');
-    for (var i=0; i < testResults.length; i++) {
-        console.log('Test[' + testResults[i].test + '] for ' + testResults[i].device + ' took ' + testResults[i].time + " ms.");
-        console.log('data.' + JSON.stringify(testResults[i].data));
+    for (var i=0; i < this.testResults.length; i++) {
+        console.log('Test[' + this.testResults[i].test + '] for ' + this.testResults[i].device + ' took ' + this.testResults[i].time + " ms.");
+        console.log('data.' + JSON.stringify(this.testResults[i].data));
         console.log('---------------');
     }
 }
-function testTimeOut(){
+TestFramework.prototype.testTimeOut  = function(){
     console.log('*** TIMEOUT ****');
-    testFinished();
+    this.testFinished();
 }
-function testFinished(){
-    for (var deviceName in testDevices) {
-        if (testDevices[deviceName] != null) {
-            var responseTime = testDevices[deviceName].endTime - testDevices[deviceName].startTime;
-            testResults.push({"test": currentTest, "device":deviceName,"time": responseTime,"data": testDevices[deviceName].data});
+TestFramework.prototype.testFinished  = function(){
+    for (var deviceName in this.testDevices) {
+        if (this.testDevices[deviceName] != null) {
+            var responseTime = this.testDevices[deviceName].endTime - this.testDevices[deviceName].startTime;
+            this.testResults.push({"test": this.currentTest, "device":deviceName,"time": responseTime,"data": this.testDevices[deviceName].data});
 
             //lets finalize the test by stopping it.
-            testDevices[deviceName].SendCommand('stop',"","");
+            this.testDevices[deviceName].SendCommand('stop',"","");
 
             //reset values for next testing round
-            testDevices[deviceName].startTime = new Date();
-            testDevices[deviceName].endTime = new Date();
-            testDevices[deviceName].data = null;
+            this.testDevices[deviceName].startTime = new Date();
+            this.testDevices[deviceName].endTime = new Date();
+            this.testDevices[deviceName].data = null;
         }
     }
 
-    doNextTest()
+    this.doNextTest()
 }
 
 module.exports = TestFramework;

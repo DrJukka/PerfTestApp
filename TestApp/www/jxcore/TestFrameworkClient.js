@@ -8,12 +8,21 @@ var TestOneClient  = require('./tests/TestOneClient');
 var TestTwoClient  = require('./tests/TestTwoClient');
 var TestThreeClient= require('./tests/TestThreeClient');
 
-
 var currentTest = null;
 
 function TestFrameworkClient(name) {
+    var self = this;
+
+    this.debugCallback = function(data) {
+        self.emit('debug',data);
+    }
+
+    this.doneCallback = function(data) {
+        self.emit('done',data);
+    }
 
     this.deviceName= name;
+
     // Register peerAvailabilityChanged callback.
     Mobile('peerAvailabilityChanged').registerToNative(function (args) {
         console.log('peerAvailabilityChanged called');
@@ -50,37 +59,24 @@ TestFrameworkClient.prototype.handleCommand = function(command){
                 case 'findPeers':{
                     self.emit('debug',"---- start : findPeers -- ");
                     currentTest = new TestOneClient(commandData.testData,this.deviceName);
-                    currentTest.on('done', function (data) {
-                        self.emit('done',data);
-                    });
-                    currentTest.on('debug', function (data) {
-                        self.emit('debug',data);
-                    });
                     break;
                 }
                 case 're-Connect':{
                     self.emit('debug',"---- start : re-Connect -- ");
                     currentTest = new TestTwoClient(commandData.testData,this.deviceName);
-                    currentTest.on('done', function (data) {
-                        self.emit('done',data);
-                    });
-                    currentTest.on('debug', function (data) {
-                        self.emit('debug',data);
-                    });
                     break;
                 }
                 case 'send-data':{
                     self.emit('debug',"---- start : send-data -- ");
                     currentTest = new TestThreeClient(commandData.testData,this.deviceName);
-                    currentTest.on('done', function (data) {
-                        self.emit('done',data);
-                    });
-                    currentTest.on('debug', function (data) {
-                        self.emit('debug',data);
-                    });
+                    break;
+                }
+                default:{
+                    self.emit('done',JSON.stringify({"result":"TEST NOT IMPLEMENTED"}));
                     break;
                 }
             }
+            self.setCallbacks(currentTest);
             break;
         }
         case 'stop':{
@@ -93,13 +89,25 @@ TestFrameworkClient.prototype.handleCommand = function(command){
         }
     }
 }
+TestFrameworkClient.prototype.setCallbacks = function(test) {
+    if (test == null) {
+        return;
+    }
+    test.on('done', this.doneCallback);
+    test.on('debug', this.debugCallback);
+}
+
+
 TestFrameworkClient.prototype.stopAllTests = function() {
     console.log('stop tests now !');
-    if(currentTest != null){
-        console.log('stop current!');
-        currentTest.stop();
-        currentTest = null;
+    if (currentTest == null) {
+        return;
     }
+    console.log('stop current!');
+    currentTest.stop();
+    currentTest.removeListener('done', this.doneCallback);
+    currentTest.removeListener('debug', this.debugCallback);
+    currentTest = null;
 }
 
 module.exports = TestFrameworkClient;
