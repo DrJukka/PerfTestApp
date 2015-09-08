@@ -2,17 +2,14 @@
 
 ## current state
 
-Currently the framework is considered finalized at least from the design point of view. Any bugs etc. still need to be ironed out.
+Currently the framework is considered finalized and tests are briefly tested to be working fine.
 
-Tests however are not finalized, the second test currently is just made to time-out, since its just not ready at all.
+When using do remember that all devices & the machine where the coordinator server is run must be using same Wi-Fi network as well as you need to remember to copy the IP json file into the jxcore folder of the app.
 
-Find peers test however is very near to the final version.
-
-When using do remember that all devices & the machine where the coordinator server is run must be using same Wi-Fi network.
 
 ## Plan
 
-Currently working on the test cases on device side, server side is currently considered mostly ready.
+Next step is to verify that tests are working fine, and also the reporting from the tests data needs to be designed & implemented.
 
 ## usage
 
@@ -34,6 +31,11 @@ with the data item
 
 additionally with  re-Connect test data
 - rounds defines how many rounds of connection established needs to be performed for each peers
+- dataTimeout defines timeout which after data sent is determined to be lost, and the connection is disconnected (and reconnected, data send starts from the point we know we managed to deliver to other side)
+- conReTryTimeout defines timeout value used between disconnection (by error) and re-connection 
+- conReTryCount defined on how many times we re-try establishing connections before we give up.
+
+additionally with  send-data test data
 - dataAmount defines the amount of data sent through each connection before disconnecting
 
 
